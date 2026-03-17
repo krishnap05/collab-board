@@ -2,8 +2,6 @@ import { useRef, useEffect, useState } from 'react'
 import { Stage, Layer, Arrow as KonvaArrow } from 'react-konva'
 import Konva from 'konva'
 import { useBoard } from './hooks/useBoard'
-import { useArrows } from './hooks/useArrows'
-import { useTextBoxes } from './hooks/useTextBoxes'
 import { useEditNote } from './hooks/useEditNote'
 import { TOOLBAR_HEIGHT } from './constants'
 import type { ToolMode } from './types'
@@ -13,9 +11,14 @@ import BoardTextBox from './components/BoardTextBox'
 import Toolbar from './components/Toolbar'
 
 function App() {
-  const { notes, selectedId, addNote, deleteNote, moveNote, resizeNote, selectNote, updateNoteText } = useBoard()
-  const { arrows, drawingArrow, startArrow, finishArrow } = useArrows()
-  const { textBoxes, addTextBox, moveTextBox, updateTextBoxText } = useTextBoxes()
+  const {
+    notes, arrows, textBoxes,
+    selectedId, status, drawingArrow,
+    addNote, deleteNote, moveNote, resizeNote, selectNote, updateNoteText,
+    startArrow, finishArrow,
+    addTextBox, moveTextBox, updateTextBoxText,
+    manualSave,
+  } = useBoard()
   const { editingId, startEditing, stopEditing } = useEditNote()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [toolMode, setToolMode] = useState<ToolMode>('select')
@@ -97,7 +100,9 @@ function App() {
         activeTool={toolMode}
         onToolChange={setToolMode}
         onDelete={handleDelete}
+        onSave={manualSave}
         canDelete={selectedId !== null}
+        status={status}
       />
       <Stage
         width={window.innerWidth}

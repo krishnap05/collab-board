@@ -4,7 +4,9 @@ interface Props {
   activeTool: ToolMode
   onToolChange: (tool: ToolMode) => void
   onDelete: () => void
+  onSave: () => void
   canDelete: boolean
+  status: 'saved' | 'saving' | 'unsaved'
 }
 
 const tools: { mode: ToolMode; label: string; icon: string }[] = [
@@ -26,7 +28,10 @@ const btnBase: React.CSSProperties = {
   transition: 'background 0.15s',
 }
 
-function Toolbar({ activeTool, onToolChange, onDelete, canDelete }: Props) {
+function Toolbar({ activeTool, onToolChange, onDelete, onSave, canDelete, status }: Props) {
+  const statusColor = status === 'saved' ? '#22c55e' : status === 'saving' ? '#f59e0b' : '#888'
+  const statusText = status === 'saved' ? 'Saved' : status === 'saving' ? 'Saving...' : 'Unsaved'
+
   return (
     <div style={{
       height: '52px',
@@ -38,6 +43,12 @@ function Toolbar({ activeTool, onToolChange, onDelete, canDelete }: Props) {
       gap: '6px',
       zIndex: 10,
     }}>
+      <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '15px', marginRight: '12px' }}>
+        Collab Board
+      </span>
+
+      <span style={{ color: '#2a2a4a', marginRight: '6px' }}>|</span>
+
       {tools.map(t => (
         <button
           key={t.mode}
@@ -54,6 +65,23 @@ function Toolbar({ activeTool, onToolChange, onDelete, canDelete }: Props) {
       ))}
 
       <div style={{ flex: 1 }} />
+
+      <button
+        onClick={onSave}
+        disabled={status === 'saved' || status === 'saving'}
+        style={{
+          ...btnBase,
+          background: status === 'saved' ? '#1e1e3a' : '#6366f1',
+          color: status === 'saved' ? '#555' : '#fff',
+          cursor: status === 'saved' ? 'default' : 'pointer',
+        }}
+      >
+        Save
+      </button>
+
+      <span style={{ color: statusColor, fontSize: '13px', marginRight: '12px' }}>
+        {statusText}
+      </span>
 
       {canDelete && (
         <button
