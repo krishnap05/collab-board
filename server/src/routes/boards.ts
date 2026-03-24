@@ -3,9 +3,18 @@ import pool from '../db'
 
 const router = Router()
 
-// get the most recent board
+// get the most recent board for a specific user
 router.get('/latest', async (req: Request, res: Response) => {
-  const result = await pool.query('SELECT * FROM boards ORDER BY updated_at DESC LIMIT 1')
+  const userId = req.headers['x-user-id'] as string
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const result = await pool.query(
+    'SELECT * FROM boards WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1',
+    [userId]
+  )
   if (result.rows.length === 0) {
     res.status(404).json({ error: 'No boards found' })
     return
@@ -20,10 +29,18 @@ router.get('/latest', async (req: Request, res: Response) => {
   })
 })
 
-// get a board by id
+// get a board by id, only if it belongs to the user
 router.get('/:id', async (req: Request, res: Response) => {
-  const id = req.params.id as string
-  const result = await pool.query('SELECT * FROM boards WHERE id = $1', [id])
+  const userId = req.headers['x-user-id'] as string
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const result = await pool.query(
+    'SELECT * FROM boards WHERE id = $1 AND user_id = $2',
+    [req.params.id, userId]
+  )
   if (result.rows.length === 0) {
     res.status(404).json({ error: 'Board not found' })
     return
@@ -38,17 +55,24 @@ router.get('/:id', async (req: Request, res: Response) => {
   })
 })
 
-// create a new board
+// create a new board for a specific user
 router.post('/', async (req: Request, res: Response) => {
+  const userId = req.headers['x-user-id'] as string
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
   const name = req.body.name || 'Untitled Board'
   const state = {
     notes: req.body.notes || [],
     arrows: req.body.arrows || [],
     textBoxes: req.body.textBoxes || [],
   }
+
   const result = await pool.query(
-    'INSERT INTO boards (name, state) VALUES ($1, $2) RETURNING *',
-    [name, JSON.stringify(state)]
+    'INSERT INTO boards (name, state, user_id) VALUES ($1, $2, $3) RETURNING *',
+    [name, JSON.stringify(state), userId]
   )
   const row = result.rows[0]
   res.status(201).json({
@@ -60,13 +84,20 @@ router.post('/', async (req: Request, res: Response) => {
   })
 })
 
-// update an existing board
+// update a board, only if it belongs to the user
 router.put('/:id', async (req: Request, res: Response) => {
-  const id = req.params.id as string
+  const userId = req.headers['x-user-id'] as string
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
   const { name, notes, arrows, textBoxes } = req.body
 
-  // get existing state first
-  const existing = await pool.query('SELECT * FROM boards WHERE id = $1', [id])
+  const existing = await pool.query(
+    'SELECT * FROM boards WHERE id = $1 AND user_id = $2',
+    [req.params.id, userId]
+  )
   if (existing.rows.length === 0) {
     res.status(404).json({ error: 'Board not found' })
     return
@@ -81,8 +112,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const newName = name ?? existing.rows[0].name
 
   const result = await pool.query(
-    'UPDATE boards SET name = $1, state = $2, updated_at = now() WHERE id = $3 RETURNING *',
-    [newName, JSON.stringify(newState), id]
+    'UPDATE boards SET name = $1, state = $2, updated_at = now() WHERE id = $3 AND user_id = $4 RETURNING *',
+    [newName, JSON.stringify(newState), req.params.id, userId]
   )
   const row = result.rows[0]
   res.json({

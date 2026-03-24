@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StickyNote, Arrow, TextBox } from '../types'
 import { COLORS, NOTE_WIDTH, NOTE_HEIGHT } from '../constants'
 import { createBoard, getLatestBoard, saveBoard } from '../services/api'
+import { useUser } from '@clerk/clerk-react'
 
 let nextNoteId = 1
 let nextArrowId = 1
@@ -18,16 +19,16 @@ export function useBoard() {
   const notesRef = useRef(notes)
   const arrowsRef = useRef(arrows)
   const textBoxesRef = useRef(textBoxes)
+  const { user } = useUser()
 
-  // keep refs in sync so auto-save always has latest data
   useEffect(() => { notesRef.current = notes }, [notes])
   useEffect(() => { arrowsRef.current = arrows }, [arrows])
   useEffect(() => { textBoxesRef.current = textBoxes }, [textBoxes])
 
-  // load existing board or create a new one
   useEffect(() => {
     async function init() {
-      const existing = await getLatestBoard()
+      if (!user?.id) return
+      const existing = await getLatestBoard(user.id)
       if (existing) {
         setBoardId(existing.id)
         const loadedNotes: StickyNote[] = existing.notes || []
@@ -36,32 +37,29 @@ export function useBoard() {
         setNotes(loadedNotes)
         setArrows(loadedArrows)
         setTextBoxes(loadedTextBoxes)
-        // set next IDs past loaded data
         if (loadedNotes.length > 0) nextNoteId = Math.max(...loadedNotes.map(n => n.id)) + 1
         if (loadedArrows.length > 0) nextArrowId = Math.max(...loadedArrows.map(a => a.id)) + 1
         if (loadedTextBoxes.length > 0) nextTextId = Math.max(...loadedTextBoxes.map(t => t.id)) + 1
       } else {
-        const board = await createBoard('My Board')
+        const board = await createBoard('My Board', user.id)
         setBoardId(board.id)
       }
     }
     init()
-  }, [])
+  }, [user?.id])
 
-  // auto save 2 seconds after last change
   const triggerAutoSave = useCallback(() => {
     setStatus('unsaved')
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       const id = boardId
-      if (!id) return
+      if (!id || !user?.id) return
       setStatus('saving')
-      await saveBoard(id, notesRef.current, arrowsRef.current, textBoxesRef.current)
+      await saveBoard(id, notesRef.current, arrowsRef.current, textBoxesRef.current, user.id)
       setStatus('saved')
     }, 2000)
-  }, [boardId])
+  }, [boardId, user?.id])
 
-  // --- Notes ---
   const addNote = (x: number, y: number) => {
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)]
     const newNote: StickyNote = {
@@ -101,7 +99,6 @@ export function useBoard() {
     triggerAutoSave()
   }
 
-  // --- Arrows ---
   const [drawingArrow, setDrawingArrow] = useState<[number, number] | null>(null)
 
   const startArrow = (x: number, y: number) => {
@@ -122,29 +119,28 @@ export function useBoard() {
     setDrawingArrow(null)
   }
 
-  // --- Text Boxes ---
   const addTextBox = (x: number, y: number) => {
     setTextBoxes(prev => [...prev, { id: nextTextId++, x, y, text: 'Text', fontSize: 18 }])
     triggerAutoSave()
   }
 
   const moveTextBox = (id: number, x: number, y: number) => {
-    setTextBoxes(prev => prev.map(t => (t.id === id ? { ...t, x, y } : t)))
+    setTextBoxes(prev => prev.map(t => t.id === id ? { ...t, x, y } : t))
     triggerAutoSave()
   }
 
   const updateTextBoxText = (id: number, text: string) => {
-    setTextBoxes(prev => prev.map(t => (t.id === id ? { ...t, text } : t)))
+    setTextBoxes(prev => prev.map(t => t.id === id ? { ...t, text } : t))
     triggerAutoSave()
   }
 
   const manualSave = useCallback(async () => {
-    if (!boardId) return
+    if (!boardId || !user?.id) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setStatus('saving')
-    await saveBoard(boardId, notesRef.current, arrowsRef.current, textBoxesRef.current)
+    await saveBoard(boardId, notesRef.current, arrowsRef.current, textBoxesRef.current, user.id)
     setStatus('saved')
-  }, [boardId])
+  }, [boardId, user?.id])
 
   return {
     notes, arrows, textBoxes,

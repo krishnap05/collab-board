@@ -1,4 +1,6 @@
-import type { ToolMode } from '../types'
+
+import { UserButton } from '@clerk/clerk-react';
+import type { ToolMode } from '../types';
 
 interface Props {
   activeTool: ToolMode
@@ -95,6 +97,9 @@ function Toolbar({ activeTool, onToolChange, onDelete, onSave, canDelete, status
           Delete
         </button>
       )}
+      <div style={{ marginLeft: 16 }}>
+        <UserButton afterSignOutUrl="/" />
+      </div>
     </div>
   )
 }

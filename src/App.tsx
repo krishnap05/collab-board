@@ -1,4 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
+import { useUser } from '@clerk/clerk-react';
+import AuthPage from './components/AuthPage';
 import { Stage, Layer, Arrow as KonvaArrow } from 'react-konva'
 import Konva from 'konva'
 import { useBoard } from './hooks/useBoard'
@@ -11,6 +13,7 @@ import BoardTextBox from './components/BoardTextBox'
 import Toolbar from './components/Toolbar'
 
 function App() {
+  const { isSignedIn } = useUser();
   const {
     notes, arrows, textBoxes,
     selectedId, status, drawingArrow,
@@ -94,8 +97,13 @@ function App() {
     if (selectedId !== null) deleteNote(selectedId)
   }
 
+  if (!isSignedIn) {
+    return <AuthPage />;
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* ...existing board code... */}
       <Toolbar
         activeTool={toolMode}
         onToolChange={setToolMode}
@@ -205,7 +213,7 @@ function App() {
         />
       )}
     </div>
-  )
+  );
 }
 
 export default App
